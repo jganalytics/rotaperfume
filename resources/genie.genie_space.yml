@@ -1,0 +1,7 @@
+resources:
+  genie_spaces:
+    comercial_genie_space:
+      title: "RotaPerfume - Comercial Genie Space"
+      description: "Espaço de Inteligência Artificial para consultas em linguagem natural sobre a camada Gold da RotaPerfume."
+      file_path: ./comercial.geniespace.json
+      warehouse_id: ${var.warehouse_id}

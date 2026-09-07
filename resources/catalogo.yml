@@ -1,0 +1,24 @@
+resources:
+  schemas:
+    bronze_schema:
+      catalog_name: ${var.catalog}
+      name: bronze
+      comment: "Camada Bronze: Armazena os dados brutos ingeridos com preservação do histórico."
+
+    silver_schema:
+      catalog_name: ${var.catalog}
+      name: silver
+      comment: "Camada Silver: Dados limpos, filtrados e estruturados prontos para análise."
+
+    gold_schema:
+      catalog_name: ${var.catalog}
+      name: gold
+      comment: "Camada Gold: Dados agregados e modelados em Data Marts para consumo de negócios."
+
+  volumes:
+    raw_volume:
+      catalog_name: ${var.catalog}
+      schema_name: bronze
+      name: raw
+      volume_type: MANAGED
+      comment: "Volume Managed para recepção e conferência de arquivos brutos CSV (ERP e CRM)."

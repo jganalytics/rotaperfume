@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "enabledPlugins": {
+    "databricks@claude-plugins-official": true
+  },
+  "permissions": {
+    "deny": [
+      "Bash(databricks bundle destroy*)",
+      "Bash(databricks bundle deploy --target prod*)",
+      "Bash(rm -rf*)",
+      "Bash(git push --force*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/block_destructive_sql.py"
+          }
+        ]
+      }
+    ]
+  }
+}

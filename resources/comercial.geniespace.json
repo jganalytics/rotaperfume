@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "lakehouse_rotaperfume.gold.clientes_em_risco",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.dim_calendario",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.dim_cliente",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.dim_produto",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.dim_vendedor",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.efeito_lancamento",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.fato_vendas",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.margem_por_categoria",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.ranking_marcas",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.receita_mensal",
+        "column_configs": []
+      },
+      {
+        "identifier": "lakehouse_rotaperfume.gold.ruptura_por_marca",
+        "column_configs": []
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "c5fdc8ff226606edb11300aff298ba80",
+        "content": [
+          "# RotaPerfume — Instruções de Contexto e Regras para o Databricks Genie AI\n\n## 1. Contexto do Negócio\nA **RotaPerfume** é uma distribuidora B2B especializada em perfumaria fina e fragrâncias árabes de alto padrão. Vendemos exclusivamente para clientes PJ (lojas de varejo, perfumarias especializadas, boutiques e distribuidores regionais).\n\n---\n\n## 2. Glossário de Termos Comerciais\n- **Ruptura**: Ocorrência de produto em falta no estoque snapshot no momento da demanda (estoque zerado).\n- **Carteira**: Conjunto de clientes PJ ativos associados a um determinado vendedor ou região.\n- **Oportunidade**: Clientes com alto potencial de compra que não realizam pedidos há determinado período.\n- **Devolução**: Retorno físico/financeiro de itens faturados. Itens devolvidos possuem o indicador `devolucao = true` e valores numéricos negativos.\n- **SKU**: Código identificador único do produto comercializado.\n- **Segmento**: Tipo de canal de atuação comercial do cliente PJ (ex: Perfumaria, Varejo, Boutique, Distribuidor).\n- **Atingimento de Meta**: Percentual de receita realizada em relação à meta estipulada para o vendedor no mês.\n- **Curva ABC**: Classificação dos produtos ou clientes por relevância no faturamento total.\n\n---\n\n## 3. Regra Fundamental de Sazonalidade\n> **IMPORTANTE PARA A IA**: O modelo comercial da RotaPerfume é **B2B**. Por esse motivo, os picos de faturamento da distribuidora ocorrem **NO MÊS ANTERIOR** às datas comemorativas do varejo, pois os lojistas abastecem seus estoques antecipadamente:\n- **Abril**: Pico de vendas para o Dia das Mães (maio).\n- **Junho**: Pico de vendas para o Dia dos Namorados (junho).\n- **Outubro**: Pico de vendas para a Black Friday e Natal (novembro/dezembro).\n- **Dezembro e Janeiro**: Períodos de **VALE** (queda normal nas vendas B2B). O varejo está queimando estoque e não repõe pedidos pesados nesses meses. **Isso é um comportamento saudável e esperado do modelo B2B, não representando queda de desempenho comercial.**\n\n---\n\n## 4. Regras de Cálculo das Métricas\n- **Receita Líquida Total**: `SUM(receita)` em `fato_vendas` (já inclui abatimento de devoluções com valor negativo).\n- **Receita Bruta Vendida**: `SUM(receita)` em `fato_vendas` com o filtro `devolucao = false`.\n- **Margem de Lucro (R$)**: `SUM(margem)` em `fato_vendas`.\n- **Margem Percentual (%)**: `SUM(margem) / NULLIF(SUM(receita), 0) * 100`.\n- **Ticket Médio**: `SUM(receita) / NULLIF(COUNT(DISTINCT pedido_id), 0)`.\n- **Clientes em Risco de Churn**: Clientes sem compras registradas há mais de 90 dias (`dias_desde_ultima_compra > 90`).\n- **Atingimento de Meta (%)**: `SUM(receita) / NULLIF(meta_mensal, 0) * 100` em `mart_vendas_por_vendedor`.\n\n---\n\n## 5. Cuidados no Uso dos Dados\n- Sempre diferencie pedidos efetuados de devoluções: devoluções possuem a flag `devolucao = true` e valores negativos em `quantidade` e `receita`.\n- Para análises mensais, utilize a tabela `receita_mensal` ou a dimensão `dim_calendario` para identificar se o mês é um `mes_pico_setor`.\n"
+        ]
+      }
+    ],
+    "example_question_sqls": [
+      {
+        "id": "048e5424f5f8fa9db74c927e19d20bad",
+        "question": [
+          "Qual a margem por categoria de produto?"
+        ],
+        "sql": [
+          "SELECT categoria, receita, margem, margem_pct FROM lakehouse_rotaperfume.gold.margem_por_categoria ORDER BY margem_pct DESC"
+        ]
+      },
+      {
+        "id": "78c3dddf43c84bec9c033573105375d0",
+        "question": [
+          "Qual a receita dos produtos nos primeiros 120 dias de lançamento?"
+        ],
+        "sql": [
+          "SELECT sku, descricao, marca, categoria, data_lancamento, receita_primeiros_120_dias, receita_apos_120_dias, receita_total FROM lakehouse_rotaperfume.gold.efeito_lancamento ORDER BY receita_primeiros_120_dias DESC"
+        ]
+      },
+      {
+        "id": "999c618b1660d53dc066fdbdfee392c3",
+        "question": [
+          "Quais são as marcas mais vendidas por receita?"
+        ],
+        "sql": [
+          "SELECT marca, receita, margem_pct, participacao_pct FROM lakehouse_rotaperfume.gold.ranking_marcas ORDER BY receita DESC"
+        ]
+      },
+      {
+        "id": "aa5e94722ca45fcec16991987e2dcca7",
+        "question": [
+          "Quais clientes estão em risco de churn?"
+        ],
+        "sql": [
+          "SELECT cliente_id, razao_social, segmento, cidade, dias_desde_ultima_compra, receita_media_mensal FROM lakehouse_rotaperfume.gold.clientes_em_risco ORDER BY dias_desde_ultima_compra DESC"
+        ]
+      },
+      {
+        "id": "bf10c86d3b1723973ca46bff4b40ac08",
+        "question": [
+          "Qual foi a receita e a margem por mês?"
+        ],
+        "sql": [
+          "SELECT ano, mes, receita, margem, pedidos, mes_pico_setor FROM lakehouse_rotaperfume.gold.receita_mensal ORDER BY ano, mes"
+        ]
+      },
+      {
+        "id": "cbc428cd7f456b3d3e203b6c9e32ed18",
+        "question": [
+          "Qual a taxa de ruptura de estoque por marca?"
+        ],
+        "sql": [
+          "SELECT marca, total_snapshots, snapshots_em_ruptura, pct_ruptura FROM lakehouse_rotaperfume.gold.ruptura_por_marca ORDER BY pct_ruptura DESC"
+        ]
+      }
+    ]
+  },
+  "config": {
+    "sample_questions": [
+      {
+        "id": "198ea8fbddb42c9a1fe5c11c8235b3fd",
+        "question": [
+          "Quais categorias têm a melhor margem percentual?"
+        ]
+      },
+      {
+        "id": "5fbc3b84c4102083ce97d3af641b123d",
+        "question": [
+          "Como foi o desempenho de vendas nos primeiros 120 dias de lançamento dos produtos?"
+        ]
+      },
+      {
+        "id": "658f89af5fee9ed6035ff9e00f6e490b",
+        "question": [
+          "Quais são as 5 marcas mais vendidas?"
+        ]
+      },
+      {
+        "id": "75ed73228c7b257d103edacafcebe517",
+        "question": [
+          "Quais clientes estão em risco de churn sem comprar há mais de 90 dias?"
+        ]
+      },
+      {
+        "id": "7aac73ca3cf500cac4c857a882c0561c",
+        "question": [
+          "Qual foi a receita e a margem por mês?"
+        ]
+      }
+    ]
+  }
+}

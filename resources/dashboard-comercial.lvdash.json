@@ -1,0 +1,1130 @@
+{
+  "datasets": [
+    {
+      "name": "ds_vendas",
+      "displayName": "Vendas (fato_vendas)",
+      "queryLines": [
+        "-- Um dataset só, e de propósito: quando os widgets compartilham o dataset,\n",
+        "-- clicar numa marca filtra a tela inteira. Datasets separados quebram isso.\n",
+        "-- Repare no SQL: nenhum CAST, nenhum try_to_date. É o que a silver comprou.\n",
+        "SELECT data_pedido, ano, mes, canal, segmento, cidade,\n",
+        "       marca, categoria, nota_olfativa,\n",
+        "       pedido_id, cliente_id, quantidade, receita, custo, margem, devolucao\n",
+        "FROM lakehouse_rotaperfume.gold.fato_vendas\n"
+      ],
+      "columns": [
+        {
+          "displayName": "Total Receita",
+          "description": "Soma da receita, com devolução (negativa) inclusa.",
+          "expression": "SUM(`receita`)"
+        },
+        {
+          "displayName": "Total Margem",
+          "description": "Receita menos custo do produto.",
+          "expression": "SUM(`margem`)"
+        },
+        {
+          "displayName": "Total Pedidos",
+          "description": "Pedidos distintos, não cancelados.",
+          "expression": "COUNT(DISTINCT `pedido_id`)"
+        },
+        {
+          "displayName": "Ticket Médio",
+          "description": "Receita dividida pelo número de pedidos.",
+          "expression": "SUM(`receita`) / NULLIF(COUNT(DISTINCT `pedido_id`), 0)"
+        },
+        {
+          "displayName": "Percentual Margem",
+          "description": "Margem sobre receita.",
+          "expression": "SUM(`margem`) / NULLIF(SUM(`receita`), 0)"
+        }
+      ]
+    },
+    {
+      "name": "ds_top_clientes",
+      "displayName": "Top 20 clientes",
+      "queryLines": [
+        "-- Grão diferente (um cliente por linha, já ranqueado), então dataset próprio.\n",
+        "SELECT razao_social, segmento, cidade,\n",
+        "       SUM(receita)                AS receita,\n",
+        "       SUM(margem)                 AS margem,\n",
+        "       COUNT(DISTINCT pedido_id)   AS pedidos\n",
+        "FROM lakehouse_rotaperfume.gold.fato_vendas\n",
+        "GROUP BY 1, 2, 3\n",
+        "ORDER BY receita DESC\n",
+        "LIMIT 20\n"
+      ]
+    },
+    {
+      "name": "ds_vendas_vendedor",
+      "displayName": "Vendas por Vendedor",
+      "queryLines": [
+        "-- Performance e vendas por vendedor da camada Gold.\n",
+        "SELECT nome_vendedor AS vendedor, regiao, ano, mes,\n",
+        "       receita, margem, meta_mensal, atingimento_pct, clientes_atendidos, ticket_medio\n",
+        "FROM lakehouse_rotaperfume.gold.mart_vendas_por_vendedor\n",
+        "ORDER BY receita DESC\n"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "comercial",
+      "displayName": "Comercial",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "titulo",
+            "textbox_spec": "# Rota do Perfume · Comercial\n"
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "subtitulo",
+            "textbox_spec": "Sobre `gold.fato_vendas`. Este arquivo é um JSON versionado no bundle — sobe junto com o `databricks bundle deploy`, tem `git diff` e tem rollback.\n"
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "f_ano",
+            "queries": [
+              {
+                "name": "q_ano",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "ano",
+                      "expression": "`ano`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "ano",
+                    "displayName": "Ano",
+                    "queryName": "q_ano"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ano"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "f_segmento",
+            "queries": [
+              {
+                "name": "q_segmento",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "segmento",
+                      "expression": "`segmento`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "segmento",
+                    "displayName": "Segmento",
+                    "queryName": "q_segmento"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Segmento"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "f_cidade",
+            "queries": [
+              {
+                "name": "q_cidade",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "cidade",
+                      "expression": "`cidade`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "cidade",
+                    "displayName": "Cidade",
+                    "queryName": "q_cidade"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Cidade"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_receita",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "measure(Total Receita)",
+                      "expression": "MEASURE(`Total Receita`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Total Receita)",
+                  "displayName": "Receita",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Receita"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_margem",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "measure(Total Margem)",
+                      "expression": "MEASURE(`Total Margem`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Total Margem)",
+                  "displayName": "Margem",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Margem"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_pedidos",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "measure(Total Pedidos)",
+                      "expression": "MEASURE(`Total Pedidos`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Total Pedidos)",
+                  "displayName": "Pedidos",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pedidos"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 3,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_ticket",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "measure(Ticket Médio)",
+                      "expression": "MEASURE(`Ticket Médio`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Ticket Médio)",
+                  "displayName": "Ticket médio",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ticket médio"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 3,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "receita_no_tempo",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "monthly(data_pedido)",
+                      "expression": "DATE_TRUNC(\"MONTH\", `data_pedido`)"
+                    },
+                    {
+                      "name": "measure(Total Receita)",
+                      "expression": "MEASURE(`Total Receita`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "monthly(data_pedido)",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Mês"
+                },
+                "y": {
+                  "fieldName": "measure(Total Receita)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Receita"
+                },
+                "color": {
+                  "themeColorType": "visualizationColors",
+                  "position": 0
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Receita por mês",
+                "showDescription": true,
+                "description": "Os picos são abril, junho e outubro — o mês ANTERIOR à data comemorativa. Dezembro e janeiro são vale, e isso é saudável."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "marcas",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "marca",
+                      "expression": "`marca`"
+                    },
+                    {
+                      "name": "measure(Total Receita)",
+                      "expression": "MEASURE(`Total Receita`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "measure(Total Receita)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Receita"
+                },
+                "y": {
+                  "fieldName": "marca",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-descending"
+                    }
+                  },
+                  "displayName": "Receita por marca"
+                },
+                "color": {
+                  "themeColorType": "visualizationColors",
+                  "position": 1
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Receita por marca"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "margem_categoria",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "categoria",
+                      "expression": "`categoria`"
+                    },
+                    {
+                      "name": "measure(Percentual Margem)",
+                      "expression": "MEASURE(`Percentual Margem`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "measure(Percentual Margem)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Margem %"
+                },
+                "y": {
+                  "fieldName": "categoria",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  },
+                  "displayName": "Margem % por categoria"
+                },
+                "color": {
+                  "themeColorType": "visualizationColors",
+                  "position": 2
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Margem % por categoria",
+                "showDescription": true,
+                "description": "Ordenada crescente de propósito: Kit Presente vende muito e ganha pouco (33,0%) contra o Óleo Concentrado (49,9%)."
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 13,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "canais",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    {
+                      "name": "canal",
+                      "expression": "`canal`"
+                    },
+                    {
+                      "name": "measure(Total Receita)",
+                      "expression": "MEASURE(`Total Receita`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "measure(Total Receita)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Receita"
+                },
+                "y": {
+                  "fieldName": "canal",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-descending"
+                    }
+                  },
+                  "displayName": "Receita por canal"
+                },
+                "color": {
+                  "themeColorType": "visualizationColors",
+                  "position": 3
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Receita por canal"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 19,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "top_clientes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_top_clientes",
+                  "fields": [
+                    {
+                      "name": "razao_social",
+                      "expression": "`razao_social`"
+                    },
+                    {
+                      "name": "segmento",
+                      "expression": "`segmento`"
+                    },
+                    {
+                      "name": "cidade",
+                      "expression": "`cidade`"
+                    },
+                    {
+                      "name": "receita",
+                      "expression": "`receita`"
+                    },
+                    {
+                      "name": "pedidos",
+                      "expression": "`pedidos`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "razao_social",
+                    "displayName": "Cliente",
+                    "type": "string",
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "segmento",
+                    "displayName": "Segmento",
+                    "type": "string",
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "cidade",
+                    "displayName": "Cidade",
+                    "type": "string",
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "receita",
+                    "displayName": "Receita",
+                    "type": "float",
+                    "order": 3,
+                    "numberFormat": "R$ 0,0.00"
+                  },
+                  {
+                    "fieldName": "pedidos",
+                    "displayName": "Pedidos",
+                    "type": "integer",
+                    "order": 4
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Top 20 clientes por receita"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 19,
+            "width": 8,
+            "height": 6
+          }
+        }
+      ]
+    },
+    {
+      "name": "pg_fila",
+      "displayName": "Fila da semana",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": 1,
+      "layout": [
+        {
+          "widget": {
+            "name": "titulo_fila",
+            "textbox_spec": "# Fila da semana\n\nOs **200 clientes** de maior propensão de compra, em ordem de ligação. Escolha o vendedor no filtro ao lado."
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filtro_vendedor",
+            "queries": [
+              {
+                "name": "dashboards/filtro/vendedor",
+                "query": {
+                  "datasetName": "ds_vendas_vendedor",
+                  "fields": [
+                    {
+                      "name": "vendedor",
+                      "expression": "`vendedor`"
+                    },
+                    {
+                      "name": "vendedor_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "vendedor",
+                    "displayName": "Vendedor",
+                    "queryName": "dashboards/filtro/vendedor"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Vendedor"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "tabela_fila",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas_vendedor",
+                  "fields": [
+                    {
+                      "name": "ordem",
+                      "expression": "`ordem`"
+                    },
+                    {
+                      "name": "razao_social",
+                      "expression": "`razao_social`"
+                    },
+                    {
+                      "name": "cidade",
+                      "expression": "`cidade`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    },
+                    {
+                      "name": "faixa",
+                      "expression": "`faixa`"
+                    },
+                    {
+                      "name": "motivo",
+                      "expression": "`motivo`"
+                    },
+                    {
+                      "name": "sugestao",
+                      "expression": "`sugestao`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "ordem",
+                    "displayName": "#",
+                    "type": "integer",
+                    "order": 0,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "cellFormat": {
+                      "default": {
+                        "foregroundColor": null
+                      }
+                    },
+                    "displayAs": "number",
+                    "visible": true,
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "razao_social",
+                    "displayName": "Cliente",
+                    "type": "string",
+                    "order": 1,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "cellFormat": {
+                      "default": {
+                        "foregroundColor": null
+                      }
+                    },
+                    "displayAs": "string",
+                    "visible": true,
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "cidade",
+                    "displayName": "Cidade",
+                    "type": "string",
+                    "order": 2,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "cellFormat": {
+                      "default": {
+                        "foregroundColor": null
+                      }
+                    },
+                    "displayAs": "string",
+                    "visible": true,
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "score",
+                    "displayName": "Nota",
+                    "type": "string",
+                    "order": 3,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "cellFormat": {
+                      "default": {
+                        "foregroundColor": null
+                      }
+                    },
+                    "displayAs": "string",
+                    "visible": true,
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "faixa",
+                    "displayName": "Faixa",
+                    "type": "string",
+                    "order": 4,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "cellFormat": {
+                      "default": {
+                        "foregroundColor": null
+                      }
+                    },
+                    "displayAs": "string",
+                    "visible": true,
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "motivo",
+                    "displayName": "Por que ligar",
+                    "type": "string",
+                    "order": 5,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "cellFormat": {
+                      "default": {
+                        "foregroundColor": null
+                      }
+                    },
+                    "displayAs": "string",
+                    "visible": true,
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  },
+                  {
+                    "fieldName": "sugestao",
+                    "displayName": "O que oferecer",
+                    "type": "string",
+                    "order": 6,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true,
+                    "cellFormat": {
+                      "default": {
+                        "foregroundColor": null
+                      }
+                    },
+                    "displayAs": "string",
+                    "visible": true,
+                    "allowSearch": false,
+                    "alignContent": "left",
+                    "allowHTML": false,
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "paginationSize": "default",
+              "condensed": true,
+              "withRowNumber": false,
+              "frame": {
+                "showTitle": true,
+                "title": "Quem ligar, em ordem"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 12
+          }
+        }
+      ]
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {
+        "light": "#FCFCFC",
+        "dark": "#1F272D"
+      },
+      "widgetBackgroundColor": {
+        "light": "#FFFFFF",
+        "dark": "#11171C"
+      },
+      "widgetBorderColor": {
+        "light": "#FFFFFF",
+        "dark": "#11171C"
+      },
+      "fontColor": {
+        "light": "#11171C",
+        "dark": "#E8ECF0"
+      },
+      "selectionColor": {
+        "light": "#8C4A6B",
+        "dark": "#E8A0BF"
+      },
+      "visualizationColors": [
+        "#8C4A6B",
+        "#C97B9A",
+        "#E0A96D",
+        "#B8860B",
+        "#6B4E71",
+        "#3D5A6C",
+        "#7FB3A3"
+      ],
+      "widgetHeaderAlignment": "LEFT",
+      "widgetCornerRadius": 12
+    }
+  }
+}
